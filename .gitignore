@@ -1,0 +1,17 @@
+# data
+chest_xray/
+
+# python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# checkpoints & outputs
+checkpoints/
+*.pt
+*.pth
+runs/
+
+# OS / editor
+.DS_Store
+.vscode/
