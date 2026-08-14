@@ -65,3 +65,37 @@ project/
 ├── checkpoints/          # saved model weights (gitignored)
 └── README.md
 ```
+## Experiment 2: Weighted loss (isolating the imbalance hypothesis)
+
+Hypothesis: the baseline's strong bias toward predicting PNEUMONIA (NORMAL recall 0.38) is at least partly caused by the ~2.9:1 class imbalance in training data.
+
+Change from baseline: same TinyVGG architecture, same data, same hyperparameters (lr=0.001, 5 epochs) — only the loss function changed. Used CrossEntropyLoss with inverse-frequency class weights computed from the actual re-split train counts (1140 NORMAL, 3294 PNEUMONIA):
+
+weight_normal = total / (2 * normal_count)      # 1.9447
+weight_pneumonia = total / (2 * pneumonia_count) # 0.6730
+loss_fn = nn.CrossEntropyLoss(weight=torch.tensor([weight_normal, weight_pneumonia]))
+
+Training curves were healthy (smooth convergence, train/val tracked closely, no overfitting).
+
+Test results:
+precision   recall   f1-score   support
+NORMAL             0.94      0.43      0.59       234
+PNEUMONIA          0.74      0.98      0.85       390
+
+accuracy                              0.78       624
+
+Comparison to baseline:
+
+| Metric | Baseline | Weighted loss | Change |
+|---|---|---|---|
+| NORMAL recall | 0.38 | 0.43 | ↑ improved |
+| PNEUMONIA recall | 0.98 | 0.98 | unchanged |
+| Accuracy | 0.75 | 0.78 | ↑ |
+| Macro F1 | 0.68 | 0.72 | ↑ |
+
+Conclusion: class weighting improved NORMAL recall without costing PNEUMONIA recall, confirming imbalance was a genuine contributing factor. However, the improvement is modest — 57% of healthy patients are still misclassified — so imbalance is not the sole explanation for the val/test gap. The most likely remaining factor is the train/test distribution shift documented for this Kaggle dataset (different image sources/patients between folders). This motivates trying a stronger backbone (Phase 2) in addition to, not instead of, the imbalance fix.
+
+Next steps
+Phase 2: transfer learning with pretrained ResNet (frozen vs. partially unfrozen backbone), compared against both experiments above. Carry forward weighted loss as the default going into Phase 2.
+Optionally: inspect a sample of misclassified test images to check for visible distribution-shift patterns (equipment, contrast, image quality).
+Phase 3: experiment tracking table, F1-prioritized evaluation, model checkpointing, standalone predict.py inference script.
