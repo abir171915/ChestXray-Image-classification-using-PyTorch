@@ -1,0 +1,11 @@
+torch==2.9.1
+torchvision==0.24.1
+scikit-learn==1.3.2
+Pillow==10.1.0
+tqdm==4.67.1
+matplotlib==3.8.0
+numpy==1.26.1
+torchinfo
+
+# dev / testing
+pytest==9.1.1
