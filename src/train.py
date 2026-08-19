@@ -147,8 +147,14 @@ def main():
     test_loss, test_acc = eval_step(model, test_dataloader, loss_fn, device)
     print(f"Final test loss: {test_loss:.4f} | Final test acc: {test_acc:.4f}")
 
+    checkpoint_names = {
+        "tinyvgg": "tinyvgg_baseline.pth",
+        "resnet18": "resnet18_frozen.pth",
+        "resnet34": "resnet34_frozen.pth",
+    }
+
     args.checkpoint_dir.mkdir(exist_ok=True)
-    checkpoint_path = args.checkpoint_dir / f"{args.model}.pth"
+    checkpoint_path = args.checkpoint_dir / checkpoint_names[args.model]
     torch.save(model.state_dict(), checkpoint_path)
     print(f"Saved checkpoint to {checkpoint_path}")
 
