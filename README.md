@@ -94,13 +94,40 @@ Chest_Xray/
 │   ├── tinyvgg_baseline.pth
 │   ├── tinyvgg_weighted_loss.pth
 │   └── resnet18_frozen.pth   # best model (0.89 test acc)
-├── classification.ipynb       # full workflow: data prep, all models, evaluation
+├── src/                       # reusable pipeline, extracted from the notebook
+│   ├── data.py                 # patient-level split, DataLoaders
+│   ├── model.py                # TinyVGG, ResNet builder
+│   ├── train.py                 # train/eval loop + CLI
+│   └── predict.py               # single-image inference (ResNet18, hardcoded — the winner)
+├── tests/                      # unit tests for src/ (pytest)
+│   ├── test_data.py
+│   └── test_model.py
+├── classification.ipynb       # full experiment log: data prep, all models, evaluation
+├── pyproject.toml
+├── requirements.txt
 └── README.md
 ```
+
+## How to run
+
+```bash
+pip install -r requirements.txt
+
+# Train a model (rebuilds the patient-level split automatically the first time)
+python -m src.train --model resnet18 --epochs 5
+
+# Predict on a single image, using the best saved checkpoint
+python -m src.predict --image path/to/xray.jpeg
+
+# Run the test suite
+pytest tests/ -v
+```
+
+The notebook (`classification.ipynb`) remains the full experiment log — every model, comparison, and debugging step described in this README, in the order it actually happened. `src/` is the extracted, reusable version of the winning pipeline.
 
 ## Next steps
 
 - Re-run the `layer4`-unfrozen experiments on the patient-level split to get a directly comparable (rather than illustrative) overfitting result.
 - Add data augmentation (random flips/rotations) as a lower-risk alternative to `layer4` fine-tuning for squeezing out further gains.
-- Extract training/evaluation code from the notebook into a `src/` module with a standalone `predict.py` for inference on a single image, loading `checkpoints/resnet18_frozen.pth`.
 - Inspect a sample of misclassified test images for visible distribution-shift patterns (equipment, contrast, image quality) between train and test sources.
+- Package `src/` as an installable module (`pip install -e .`) once the pipeline settles further.
