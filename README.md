@@ -1,5 +1,7 @@
 # Chest X-Ray Pneumonia Classification (PyTorch)
 
+**🔴 [Live demo](https://huggingface.co/spaces/abir171/pneumonia-xray-classifier)** — upload a chest X-ray, get a prediction. Model checkpoint: [abir171/pneumonia-xray-resnet18](https://huggingface.co/abir171/pneumonia-xray-resnet18) on the HF Hub.
+
 Binary image classification of chest X-rays into `NORMAL` vs `PNEUMONIA`, built from scratch through progressively more capable models — a hand-built CNN baseline, a class-imbalance fix, and transfer learning with ResNet18/ResNet34 — with each step evaluated on a held-out test set and the reasoning behind every decision documented below.
 
 ## Problem
@@ -103,12 +105,20 @@ Chest_Xray/
 ├── src/                       # reusable pipeline, extracted from the notebook
 │   ├── data.py                 # patient-level split, DataLoaders
 │   ├── model.py                # TinyVGG, ResNet builder
+│   ├── transforms.py            # shared image transforms (no training-only deps)
 │   ├── train.py                 # train/eval loop + CLI
 │   └── predict.py               # single-image inference (ResNet18, hardcoded — the winner)
 ├── tests/                      # unit tests for src/ (pytest)
 │   ├── test_data.py
 │   └── test_model.py
+├── app/                        # FastAPI service (Docker deployment path, see below)
+│   └── main.py
+├── hf_space/                   # Gradio app deployed to the live HF Space
+│   ├── app.py
+│   └── model.py
 ├── classification.ipynb       # full experiment log: data prep, all models, evaluation
+├── Dockerfile
+├── requirements-app.txt        # slim runtime deps (no notebook/dev tooling)
 ├── pyproject.toml
 ├── requirements.txt
 └── README.md
@@ -130,6 +140,21 @@ pytest tests/ -v
 ```
 
 The notebook (`classification.ipynb`) remains the full experiment log — every model, comparison, and debugging step described in this README, in the order it actually happened. `src/` is the extracted, reusable version of the winning pipeline.
+
+## Deployment
+
+The model is deployed two ways, built to be independent of each other:
+
+**1. Live: Gradio app on Hugging Face Spaces** (`hf_space/`) — [huggingface.co/spaces/abir171/pneumonia-xray-classifier](https://huggingface.co/spaces/abir171/pneumonia-xray-classifier). Runs on HF's free ZeroGPU tier (the only free compute tier for Spaces with a Python backend as of this writing — plain CPU hosting for Docker/Gradio Spaces now requires a paid plan). Downloads the checkpoint from the public [HF model repo](https://huggingface.co/abir171/pneumonia-xray-resnet18) at startup rather than bundling it in the repo.
+
+**2. Built and verified locally, not deployed: FastAPI + Docker** (`app/`, `Dockerfile`) — a `POST /predict` endpoint returning full class probabilities, containerized, tested end-to-end locally including with Render's `$PORT` convention. Not currently hosted, but ready to deploy to Render (or anywhere else that runs a Docker container) without further changes. Kept as a second, more "traditional" serving path alongside the Gradio one, since the two demonstrate different things: Gradio for a quick interactive demo, FastAPI/Docker for a plain HTTP API a real system could call.
+
+```bash
+# Build and run the API locally
+docker build -t chest-xray-api .
+docker run -p 7860:7860 chest-xray-api
+curl -X POST -F "file=@xray.jpeg" http://127.0.0.1:7860/predict
+```
 
 ## Next steps
 

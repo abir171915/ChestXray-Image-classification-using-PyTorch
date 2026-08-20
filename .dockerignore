@@ -10,5 +10,6 @@ __pycache__/
 README.md
 requirements.txt
 
-checkpoints/*
-!checkpoints/resnet18_frozen.pth
+# Checkpoint is downloaded from the Hugging Face Hub during the Docker build
+# (see Dockerfile), not copied from the local build context.
+checkpoints/
