@@ -46,18 +46,24 @@ class TinyVGG(nn.Module):
         return self.classifier(x)
 
 
-def build_resnet(variant: str, num_classes: int, freeze_backbone: bool = True) -> nn.Module:
-    """Builds an ImageNet-pretrained ResNet with its final layer replaced for `num_classes`.
+def build_resnet(
+    variant: str, num_classes: int, freeze_backbone: bool = True, pretrained: bool = True
+) -> nn.Module:
+    """Builds a ResNet with its final layer replaced for `num_classes`.
 
     `variant` must be one of RESNET_BUILDERS.keys() (currently "resnet18", "resnet34").
     When `freeze_backbone=True` (the default, and what this project found works best
     for this dataset size), only the new `fc` layer is left trainable.
+
+    `pretrained=False` skips downloading ImageNet weights entirely — use this when
+    you're about to load a fine-tuned checkpoint anyway (e.g. for inference), since
+    the downloaded weights would just be immediately overwritten.
     """
     if variant not in RESNET_BUILDERS:
         raise ValueError(f"Unknown ResNet variant '{variant}'. Choose from {list(RESNET_BUILDERS)}.")
 
     builder, weights = RESNET_BUILDERS[variant]
-    model = builder(weights=weights)
+    model = builder(weights=weights if pretrained else None)
 
     if freeze_backbone:
         for param in model.parameters():

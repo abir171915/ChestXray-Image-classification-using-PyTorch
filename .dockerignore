@@ -1,0 +1,14 @@
+chest_xray/
+classification.ipynb
+tests/
+.git/
+.gitignore
+.pytest_cache/
+__pycache__/
+**/__pycache__/
+.ipynb_checkpoints/
+README.md
+requirements.txt
+
+checkpoints/*
+!checkpoints/resnet18_frozen.pth

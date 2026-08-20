@@ -16,14 +16,16 @@ import torch
 from PIL import Image
 
 from src.model import build_resnet
-from src.train import RESNET_TRANSFORM
+from src.transforms import RESNET_TRANSFORM
 
 CLASS_NAMES = ("NORMAL", "PNEUMONIA")
 DEFAULT_CHECKPOINT = Path("checkpoints/resnet18_frozen.pth")
 
 
 def load_model(checkpoint_path: Path, device: str) -> torch.nn.Module:
-    model = build_resnet("resnet18", num_classes=len(CLASS_NAMES), freeze_backbone=True)
+    # pretrained=False: no point downloading ImageNet weights just to overwrite
+    # them with our own checkpoint on the next line.
+    model = build_resnet("resnet18", num_classes=len(CLASS_NAMES), freeze_backbone=True, pretrained=False)
     model.load_state_dict(torch.load(checkpoint_path, map_location=device))
     model.to(device)
     model.eval()

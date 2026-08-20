@@ -18,22 +18,11 @@ from pathlib import Path
 
 import torch
 from torch import nn
-from torchvision import transforms
 from tqdm.auto import tqdm
 
 from src.data import build_patient_split, get_dataloaders
 from src.model import TinyVGG, build_resnet
-
-TINYVGG_TRANSFORM = transforms.Compose([
-    transforms.Resize(size=(64, 64)),
-    transforms.ToTensor(),
-])
-
-RESNET_TRANSFORM = transforms.Compose([
-    transforms.Resize(size=(224, 224)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-])
+from src.transforms import RESNET_TRANSFORM, TINYVGG_TRANSFORM  # noqa: F401 (re-exported for callers)
 
 
 def train_step(model, dataloader, loss_fn, optimizer, device):
