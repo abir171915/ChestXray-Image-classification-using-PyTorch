@@ -30,17 +30,26 @@ def load_model(checkpoint_path: Path, device: str) -> torch.nn.Module:
     return model
 
 
-def predict_image(model: torch.nn.Module, image_path: Path, device: str) -> tuple[str, float]:
-    """Returns (predicted_class, confidence) for a single image."""
-    image = Image.open(image_path).convert("RGB")
-    x = RESNET_TRANSFORM(image).unsqueeze(0).to(device)
+def predict_proba(model: torch.nn.Module, image: Image.Image, device: str) -> dict[str, float]:
+    """Returns {class_name: probability} for every class, given a PIL image.
+
+    Takes an already-opened PIL Image (rather than a path) so this also works
+    for images uploaded through an API, not just files on disk.
+    """
+    x = RESNET_TRANSFORM(image.convert("RGB")).unsqueeze(0).to(device)
 
     with torch.inference_mode():
         logits = model(x)
         probs = torch.softmax(logits, dim=1).squeeze(0)
-        pred_idx = int(probs.argmax())
 
-    return CLASS_NAMES[pred_idx], float(probs[pred_idx])
+    return {CLASS_NAMES[i]: float(probs[i]) for i in range(len(CLASS_NAMES))}
+
+
+def predict_image(model: torch.nn.Module, image_path: Path, device: str) -> tuple[str, float]:
+    """Returns (predicted_class, confidence) for a single image on disk."""
+    probs = predict_proba(model, Image.open(image_path), device)
+    pred_class = max(probs, key=probs.get)
+    return pred_class, probs[pred_class]
 
 
 def main():
