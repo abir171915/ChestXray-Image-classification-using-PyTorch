@@ -36,36 +36,42 @@ Four models were trained and compared on the identical held-out test set, so res
 3. **ResNet18 (transfer learning, frozen backbone)** — ImageNet-pretrained ResNet18 with the backbone frozen and only the final linear layer retrained, using the same weighted loss.
 4. **ResNet34 (transfer learning, frozen backbone)** — same recipe as ResNet18, swapping in a deeper pretrained backbone, to isolate "does more pretrained depth help" from "does more trainable capacity help" (the next experiment below already answers the second question).
 
+All four also use **data augmentation** on the training set only — `RandomHorizontalFlip`, `RandomRotation`, `ColorJitter` — with a separate, non-augmented transform for validation/test, so evaluation numbers stay clean and comparable.
+
 A fifth variant — unfreezing ResNet18's last residual block (`layer4`) for fine-tuning — was also tried, and is reported below because *what it revealed* is as important as the metric itself.
 
 ## Results
 
-All numbers are on the untouched `test` set (624 images), evaluated once per model, on the patient-level (leak-free) split.
+All numbers are on the untouched `test` set (624 images), evaluated once per model, on the patient-level (leak-free) split, with training-time augmentation applied.
 
 | Model | Test Acc | NORMAL recall | NORMAL precision | NORMAL F1 | PNEUMONIA recall |
 |---|---|---|---|---|---|
-| TinyVGG (baseline) | 0.73 | 0.32 | 0.93 | 0.47 | 0.98 |
-| TinyVGG (weighted loss) | 0.74 | 0.35 | 0.89 | 0.50 | 0.97 |
-| **ResNet18 (frozen backbone)** | **0.89** | **0.79** | 0.89 | **0.84** | 0.94 |
-| ResNet34 (frozen backbone) | 0.88 | 0.74 | 0.92 | 0.82 | 0.96 |
+| TinyVGG (baseline) | 0.75 | 0.35 | 0.93 | 0.51 | 0.98 |
+| TinyVGG (weighted loss) | 0.78 | 0.49 | 0.86 | 0.63 | 0.95 |
+| **ResNet18 (frozen backbone)** | **0.91** | **0.85** | 0.91 | **0.88** | 0.95 |
+| ResNet34 (frozen backbone) | 0.85 | 0.71 | 0.85 | 0.78 | 0.93 |
 
 **Best model: ResNet18 with a frozen backbone.**
 
 ### What the baseline revealed
 
-The TinyVGG baseline reached high validation accuracy but only 73% test accuracy, and the confusion matrix showed why: it was defaulting to "PNEUMONIA" far too often (NORMAL recall of only 0.32). This wasn't a training bug — it was the ~3:1 class imbalance biasing the model toward the majority class.
+The TinyVGG baseline reached high validation accuracy but only ~75% test accuracy, and the confusion matrix showed why: it was defaulting to "PNEUMONIA" far too often (NORMAL recall of only 0.35). This wasn't a training bug — it was the ~3:1 class imbalance biasing the model toward the majority class.
 
 ### What weighted loss fixed (partially)
 
-Applying inverse-frequency class weights to `CrossEntropyLoss` — same architecture, same hyperparameters, only the loss changed — nudged NORMAL recall up slightly (0.32 → 0.35) without hurting PNEUMONIA recall. The improvement here is modest on the corrected split, smaller than it first appeared before the leakage fix — the real gain in this project came from transfer learning, not loss weighting alone.
+Applying inverse-frequency class weights to `CrossEntropyLoss` — same architecture, same hyperparameters, only the loss changed — raised NORMAL recall from 0.35 to 0.49 without badly hurting PNEUMONIA recall (0.98 → 0.95). A real improvement, but still well behind what transfer learning achieved — the biggest gain in this project came from pretrained features, not loss weighting alone.
 
 ### What transfer learning added
 
-Swapping in a frozen, ImageNet-pretrained ResNet18 (only the final linear layer trained) was the single biggest jump in the whole project — test accuracy from 0.74 to 0.89, NORMAL recall from 0.35 to 0.79 — while training only ~1,000 parameters. This is the strongest result in the project.
+Swapping in a frozen, ImageNet-pretrained ResNet18 (only the final linear layer trained) was the single biggest jump in the whole project — test accuracy from 0.78 to 0.91, NORMAL recall from 0.49 to 0.85 — while training only ~1,000 parameters. This is the strongest result in the project.
+
+### What data augmentation added
+
+Adding `RandomHorizontalFlip`, `RandomRotation`, and `ColorJitter` to the training transform — no architecture change, no new parameters — improved ResNet18 further: test accuracy from 0.89 to 0.91, NORMAL recall from 0.79 to 0.85, with false positives *and* false negatives both dropping. Unlike every other lever tried in this project, augmentation improves what the model *sees* during training rather than what it's *allowed to learn* — a genuinely different, complementary axis to class weighting (which reshapes the loss) and transfer learning (which reshapes the features available).
 
 ### What a deeper backbone (ResNet34) taught
 
-Swapping ResNet18 for the deeper ResNet34, still fully frozen, did **not** improve results — accuracy actually dipped slightly (0.89 → 0.88) and NORMAL recall dropped (0.79 → 0.74), though NORMAL precision and PNEUMONIA recall both improved marginally. With only ~4,700 training images and a frozen backbone, the extra depth in ResNet34's pretrained features wasn't exploitable by the small trainable `fc` head — depth alone isn't a free upgrade. ResNet18 remains the better choice here.
+Swapping ResNet18 for the deeper ResNet34, still fully frozen, did **not** improve results — accuracy came in lower (0.91 → 0.85) and NORMAL recall dropped (0.85 → 0.71). With only ~4,700 training images and a frozen backbone, the extra depth in ResNet34's pretrained features wasn't exploitable by the small trainable `fc` head — depth alone isn't a free upgrade. ResNet18 remains the better choice here.
 
 ### What unfreezing `layer4` taught (a negative result, kept deliberately)
 
@@ -93,7 +99,7 @@ Chest_Xray/
 ├── checkpoints/              # saved model weights (gitignored)
 │   ├── tinyvgg_baseline.pth
 │   ├── tinyvgg_weighted_loss.pth
-│   └── resnet18_frozen.pth   # best model (0.89 test acc)
+│   └── resnet18_frozen.pth   # best model (0.91 test acc)
 ├── src/                       # reusable pipeline, extracted from the notebook
 │   ├── data.py                 # patient-level split, DataLoaders
 │   ├── model.py                # TinyVGG, ResNet builder
@@ -127,7 +133,7 @@ The notebook (`classification.ipynb`) remains the full experiment log — every 
 
 ## Next steps
 
-- Re-run the `layer4`-unfrozen experiments on the patient-level split to get a directly comparable (rather than illustrative) overfitting result.
-- Add data augmentation (random flips/rotations) as a lower-risk alternative to `layer4` fine-tuning for squeezing out further gains.
+- Re-run the `layer4`-unfrozen experiments on the patient-level, augmented split to get a directly comparable (rather than illustrative) overfitting result.
+- Bring `src/data.py`/`src/model.py`/`src/train.py` up to date with the augmentation transforms now used in the notebook.
 - Inspect a sample of misclassified test images for visible distribution-shift patterns (equipment, contrast, image quality) between train and test sources.
 - Package `src/` as an installable module (`pip install -e .`) once the pipeline settles further.
